@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Order Matching Engine — interactive demo</title>
+<meta name="description" content="An interactive, explained demo of a stock-exchange order matching engine, built from scratch in Java by Nabeel Adam.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+/* Same house style as the portfolio: warm ground, Fraunces display serif, Hanken body,
+   a single green accent, real mono only inside code. Light and dark by tone steps, no glass.
+   The demo keeps its original element ids/classes so the engine JS runs unchanged; only the
+   skin and the surrounding teaching is new. */
+:root{
+  color-scheme:light;
+  --ground:#FBFAF7;
+  --tone:#F0EEE7;
+  --card:#FFFFFF;
+  --ink:#1A1A16;
+  --muted:#6B685E;
+  --line:#E4E1D8;
+  --accent:#126B47;
+  --accent-ink:#0E5739;
+  --bid:#1E7A43;        /* buyers */
+  --bid-soft:rgba(30,122,67,.12);
+  --ask:#B23A2E;        /* sellers */
+  --ask-soft:rgba(178,58,46,.12);
+  --flash:rgba(214,163,0,.38);
+  --term-bg:#17170F;--term-ink:#EDEBDE;--term-dim:#9C9A86;--term-key:#7FD1A6;--term-red:#E79A8E;
+  --serif:"Fraunces",Georgia,"Times New Roman",serif;
+  --sans:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --ground:#141311;--tone:#1D1C18;--card:#201F1A;--ink:#ECEAE1;--muted:#9C998D;--line:#2E2C26;
+  --accent:#46B583;--accent-ink:#6FCB9F;
+  --bid:#53C08C;--bid-soft:rgba(83,192,140,.16);--ask:#E0897A;--ask-soft:rgba(224,137,122,.16);
+  --flash:rgba(224,186,70,.30);
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --ground:#141311;--tone:#1D1C18;--card:#201F1A;--ink:#ECEAE1;--muted:#9C998D;--line:#2E2C26;
+  --accent:#46B583;--accent-ink:#6FCB9F;
+  --bid:#53C08C;--bid-soft:rgba(83,192,140,.16);--ask:#E0897A;--ask-soft:rgba(224,137,122,.16);
+  --flash:rgba(224,186,70,.30);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:76px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink);text-underline-offset:3px;text-decoration-thickness:1.5px}
+a:hover{color:var(--accent)}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:3px;border-radius:3px}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:500;letter-spacing:-.02em;line-height:1.04;margin:0}
+p{margin:0}
+.wrap{width:100%;max-width:1120px;margin:0 auto;padding-inline:clamp(20px,5vw,56px)}
+.num{font-variant-numeric:tabular-nums}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:30;background:var(--ground);border-bottom:1px solid var(--line)}
+.nav .wrap{display:flex;align-items:center;gap:16px;height:60px}
+.nav .crumb{font-size:15px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav .crumb a{color:var(--muted);text-decoration:none}
+.nav .crumb a:hover{color:var(--ink)}
+.nav .crumb b{color:var(--ink);font-weight:600;font-family:var(--serif)}
+.nav .right{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none}
+.nav .right a{color:var(--muted);text-decoration:none;font-size:15px;font-weight:500}
+.nav .right a:hover{color:var(--ink)}
+.iconbtn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;width:34px;height:34px;border-radius:999px;font-size:15px;display:inline-flex;align-items:center;justify-content:center;line-height:1}
+.iconbtn:hover{border-color:var(--muted)}
+
+/* hero */
+.hero{padding-block:clamp(40px,7vw,76px) clamp(32px,5vw,52px)}
+.hero .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(28px,5vw,56px);align-items:center}
+.hero .grid>*{min-width:0}
+.eyebrow{color:var(--accent-ink);font-weight:600;font-size:15px;letter-spacing:.01em;margin:0 0 10px}
+.hero h1{font-size:clamp(40px,7vw,78px);letter-spacing:-.035em}
+.hero .say{font-family:var(--serif);font-weight:400;font-size:clamp(20px,2.4vw,26px);line-height:1.25;margin-top:18px;max-width:22ch}
+.hero .sub{color:var(--muted);font-size:18px;margin-top:16px;max-width:46ch}
+.links{display:flex;flex-wrap:wrap;gap:12px 20px;margin-top:26px;align-items:center}
+.go{background:var(--accent);color:var(--ground);text-decoration:none;font-weight:600;padding:12px 22px;border-radius:999px;font-size:16px}
+.go:hover{background:var(--accent-ink);color:var(--ground)}
+.plain{color:var(--ink);font-weight:500;text-decoration:none}
+.plain:hover{color:var(--accent)}
+
+/* terminal proof block */
+.term{background:var(--term-bg);color:var(--term-ink);border-radius:14px;padding:20px 22px;font-family:var(--mono);font-size:13.5px;line-height:1.75;overflow-x:auto;white-space:pre;max-width:100%}
+.term .dots{display:flex;gap:7px;margin-bottom:14px}
+.term .dots i{width:11px;height:11px;border-radius:50%;background:#3a382c;display:block}
+.term .k{color:var(--term-key)}
+.term .d{color:var(--term-dim)}
+.term .p{color:var(--term-dim)}
+.term .r{color:var(--term-red)}
+
+/* generic sections */
+section{padding-block:clamp(48px,8vw,88px)}
+.band{background:var(--tone)}
+.shead{font-size:clamp(28px,4.2vw,42px);margin-bottom:10px;max-width:20ch}
+.sintro{color:var(--muted);font-size:18px;max-width:56ch;margin-bottom:clamp(28px,4vw,44px)}
+
+/* explainer "what / rules" */
+.rules{display:grid;grid-template-columns:1fr 1fr;gap:clamp(18px,3vw,28px)}
+.rule{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:clamp(20px,3vw,28px)}
+.rule .tag{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);margin:0 0 10px}
+.rule h3{font-size:clamp(21px,2.4vw,26px);margin-bottom:10px}
+.rule p{color:var(--ink);font-size:16.5px;max-width:48ch}
+.rule p + p{margin-top:10px;color:var(--muted)}
+.rule .ex{margin-top:14px;font-family:var(--mono);font-size:13.5px;color:var(--muted);background:var(--tone);border-radius:10px;padding:10px 12px;white-space:pre-wrap}
+.band .rule{background:var(--ground)}
+.band .rule .ex{background:var(--tone)}
+
+/* workspace (the live demo) */
+.work{display:grid;grid-template-columns:minmax(0,370px) minmax(0,1fr);gap:20px;align-items:start}
+.col{display:grid;gap:20px;min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;min-width:0}
+.band .card{background:var(--ground)}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;margin:0 0 14px;font-family:var(--sans)}
+
+/* buttons shared */
+.btn{appearance:none;border:0;cursor:pointer;font:inherit;font-weight:600;border-radius:999px;padding:10px 18px;background:var(--accent);color:var(--ground);display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover{background:var(--accent-ink)}
+.btn.quiet{background:var(--tone);color:var(--ink)}
+.band .btn.quiet{background:var(--card);border:1px solid var(--line)}
+.btn.quiet:hover{color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn[hidden]{display:none}
+
+/* tutorial */
+.steps-bar{display:flex;gap:6px;margin-bottom:14px}
+.steps-bar span{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.steps-bar span.on{background:var(--accent)}
+.tut-count{font-size:13px;color:var(--muted);margin:0}
+.tut h3{font-family:var(--serif);font-size:23px;letter-spacing:-.02em;line-height:1.15;margin:4px 0 10px}
+.tut p{margin:0 0 12px;color:var(--ink);font-size:16.5px}
+.tut .try{background:var(--bid-soft);border-radius:12px;padding:12px 14px;font-size:15px;margin-bottom:14px}
+.tut .try b{color:var(--accent-ink)}
+.tut-nav{display:flex;gap:8px;flex-wrap:wrap}
+.tut-nav .grow{flex:1}
+
+/* order form */
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--tone);border-radius:11px;padding:3px;gap:3px;margin-bottom:12px}
+.band .seg{background:var(--card);border:1px solid var(--line)}
+.seg button{appearance:none;border:0;background:transparent;font:inherit;font-weight:600;padding:9px;border-radius:8px;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.band .seg button[aria-pressed="true"]{background:var(--tone)}
+.seg.side button[data-v="BUY"][aria-pressed="true"]{color:var(--bid)}
+.seg.side button[data-v="SELL"][aria-pressed="true"]{color:var(--ask)}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+label{font-size:13px;color:var(--muted);display:grid;gap:5px;font-weight:500}
+input{font:inherit;font-variant-numeric:tabular-nums;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--ground);color:var(--ink);width:100%;min-width:0}
+input:disabled{opacity:.5}
+.submit{width:100%;padding:12px}
+.submit.buy{background:var(--bid)}
+.submit.sell{background:var(--ask)}
+.submit.buy:hover,.submit.sell:hover{filter:brightness(1.07)}
+.form-err{color:var(--ask);font-size:14px;min-height:1.4em;margin:8px 0 0}
+.form-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;font-size:14px;color:var(--muted);flex-wrap:wrap}
+.linkbtn{appearance:none;border:0;background:none;font:inherit;color:var(--accent-ink);cursor:pointer;padding:0;font-weight:600}
+.linkbtn:hover{color:var(--accent)}
+
+/* book */
+.book-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.book-head .meta{font-size:13.5px;color:var(--muted)}
+.ladder{display:grid;gap:3px;margin-top:6px}
+.lh{display:grid;grid-template-columns:66px 58px minmax(0,1fr);gap:12px;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:0 10px 4px}
+.row{position:relative;display:grid;grid-template-columns:66px 58px minmax(0,1fr);gap:12px;align-items:center;padding:7px 10px;border-radius:10px;min-height:42px}
+.row .bar{position:absolute;inset:0 auto 0 0;border-radius:10px;z-index:0}
+.row > *:not(.bar){position:relative;z-index:1}
+.row.ask .bar{background:var(--ask-soft)}
+.row.bid .bar{background:var(--bid-soft)}
+.row .px{font-weight:700}
+.row.ask .px{color:var(--ask)}
+.row.bid .px{color:var(--bid)}
+.row.best{box-shadow:inset 0 0 0 1.5px currentColor}
+.row.ask.best{color:var(--ask)}
+.row.bid.best{color:var(--bid)}
+.row .tot{color:var(--ink)}
+.queue{display:flex;flex-wrap:wrap;gap:5px}
+.chip{appearance:none;font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:2px 8px 2px 9px;cursor:pointer;display:inline-flex;gap:5px;align-items:center;font-variant-numeric:tabular-nums}
+.band .chip{background:var(--ground)}
+.chip:hover{border-color:var(--muted)}
+.chip .x{color:var(--muted);font-size:13px;line-height:1}
+.chip.first{border-color:var(--ink);font-weight:700}
+.spread{display:flex;justify-content:center;gap:8px;font-size:13px;color:var(--muted);padding:8px 0;border-block:1px dashed var(--line);margin:4px 0}
+.spread b{color:var(--ink)}
+.empty{font-size:14px;color:var(--muted);padding:10px;text-align:center}
+.flash{animation:flash 1.4s ease-out}
+@keyframes flash{0%{background:var(--flash)}100%{background:transparent}}
+@media (prefers-reduced-motion:reduce){.flash{animation:none;outline:2px solid var(--accent)}}
+.legend{font-size:13px;color:var(--muted);margin:12px 0 0}
+
+/* trades + log */
+.duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:20px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:0 0 6px}
+td{padding:6px 0;border-top:1px solid var(--line)}
+td.r,th.r{text-align:right}
+.tape{max-height:260px;overflow:auto}
+.side-b{color:var(--bid);font-weight:700}
+.side-s{color:var(--ask);font-weight:700}
+.log{list-style:none;margin:0;padding:0;display:grid;gap:8px;max-height:260px;overflow:auto}
+.log li{font-size:14.5px;line-height:1.45;padding:10px 12px;border-radius:12px;background:var(--tone)}
+.band .log li{background:var(--card)}
+.log li.trade{background:var(--bid-soft)}
+.log li.newest{box-shadow:inset 3px 0 0 var(--accent)}
+
+/* how it's built */
+.built{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(24px,4vw,48px);align-items:start}
+.built .prose p{font-size:17px;max-width:52ch;color:var(--ink)}
+.built .prose p + p{margin-top:16px}
+.built .prose b{font-family:var(--serif);font-weight:600}
+.ctable{margin-top:22px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card)}
+.band .ctable{background:var(--ground)}
+.ctable table{font-size:14.5px}
+.ctable th,.ctable td{padding:11px 14px;border:0;text-align:left}
+.ctable thead th{background:var(--tone);color:var(--muted);font-size:12px;letter-spacing:.04em}
+.band .ctable thead th{background:var(--card)}
+.ctable tbody tr + tr td{border-top:1px solid var(--line)}
+.ctable td.op{font-family:var(--mono);font-size:13px;white-space:nowrap}
+.ctable td.cost{font-family:var(--mono);font-size:13px;color:var(--accent-ink);white-space:nowrap}
+.sticky-diag{position:sticky;top:76px}
+
+/* footer */
+.foot{padding-block:40px;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}
+.foot .big{font-family:var(--serif);font-size:clamp(30px,5vw,52px);color:var(--ink);letter-spacing:-.03em;line-height:1;margin-bottom:14px}
+.foot a{font-weight:600}
+
+/* reveal */
+@media (prefers-reduced-motion:no-preference){
+  html.js [data-reveal]{opacity:0;transform:translateY(18px)}
+  html.js [data-reveal].in{opacity:1;transform:none;transition:opacity .6s ease,transform .6s cubic-bezier(.2,.7,.2,1)}
+}
+
+@media (max-width:980px){
+  .hero .grid,.rules,.built{grid-template-columns:1fr}
+  .hero .fig{order:2}
+  .sticky-diag{position:static}
+}
+@media (max-width:900px){
+  .work{grid-template-columns:minmax(0,1fr)}
+  .duo{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:520px){
+  .nav .crumb .pre{display:none}
+  .lh,.row{grid-template-columns:52px 48px minmax(0,1fr);gap:8px}
+  .card{padding:18px}
+}
+</style>
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body>
+
+<nav class="nav" aria-label="Site">
+  <div class="wrap">
+    <span class="crumb"><span class="pre"><a href="https://github.com/NabeelAdam07" target="_blank" rel="noopener">Nabeel Adam</a> · Projects · </span><b>Order Matching Engine</b></span>
+    <span class="right">
+      <a href="https://github.com/NabeelAdam07/order-matching-engine" target="_blank" rel="noopener">GitHub&nbsp;↗</a>
+      <button class="iconbtn" id="theme" type="button" aria-label="Switch light or dark theme" title="Switch theme">◐</button>
+    </span>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap grid">
+    <div>
+      <p class="eyebrow" data-reveal>Interactive demo · built from scratch in Java</p>
+      <h1 data-reveal>Order Matching Engine</h1>
+      <p class="say" data-reveal>The piece of software at the centre of every stock exchange.</p>
+      <p class="sub" data-reveal>It takes buy and sell orders and decides who trades with whom, in what order, at what price. Below you can place orders and watch it match them live — then see exactly how it's built.</p>
+      <div class="links" data-reveal>
+        <a class="go" href="#playground">Open the playground</a>
+        <a class="plain" href="#how">How it works ↓</a>
+        <a class="plain" href="https://github.com/NabeelAdam07/order-matching-engine" target="_blank" rel="noopener">Read the Java code</a>
+      </div>
+    </div>
+    <div class="fig" data-reveal>
+      <div class="term" role="img" aria-label="Benchmark output: the engine handling 6.77 million operations per second, p50 latency 84 nanoseconds, p99 792 nanoseconds, 20 tests passing.">
+        <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+<span class="p">~/order-matching-engine $</span> mvn -q compile exec:java
+<span class="k">Throughput</span>    6,769,094 ops/sec
+<span class="k">Latency p50</span>   84 ns
+<span class="k">Latency p99</span>   792 ns
+<span class="k">Tests</span>         20 passed
+<span class="d"># price-time priority, measured on an M2 laptop</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- WHAT IT IS + THE TWO RULES -->
+<section id="how" class="band">
+  <div class="wrap">
+    <h2 class="shead" data-reveal>Two rules decide every trade</h2>
+    <p class="sintro" data-reveal>An <b>order book</b> is the list of everyone waiting to trade: buyers (bids) on one side, sellers (asks) on the other. When a new order arrives, the engine matches it against the other side using just two rules, in this order.</p>
+    <div class="rules">
+      <div class="rule" data-reveal>
+        <p class="tag">Rule 1 — Price</p>
+        <h3>Best price goes first</h3>
+        <p>A new buyer trades with the <b>cheapest</b> seller available; a new seller trades with the <b>highest</b> buyer. The price that was already resting in the book is the one you pay.</p>
+        <p>So a buyer willing to pay 102 still trades at 101 if someone is already selling there — they get the better deal, not the worse one.</p>
+        <div class="ex">Buy 40 @ 102  →  fills 25 @ 101 first
+             then 15 @ 102</div>
+      </div>
+      <div class="rule" data-reveal>
+        <p class="tag">Rule 2 — Time</p>
+        <h3>Same price? First in line wins</h3>
+        <p>When several orders sit at the <b>same</b> price, the one that arrived <b>earliest</b> trades first. Each price level is a queue — join the back, move up as those ahead get filled.</p>
+        <p>This is what "price–time priority" means, and it's why being fast to the exchange is worth money.</p>
+        <div class="ex">#7 and #8 both sell @ 100
+Buy 15  →  fills #7 fully, then #8</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- THE LIVE PLAYGROUND -->
+<section id="playground">
+  <div class="wrap">
+    <h2 class="shead" data-reveal>Try it yourself</h2>
+    <p class="sintro" data-reveal>This runs a JavaScript port of the real engine — the same price–time rules, checked against the same test scenarios. Walk the tutorial, or place your own orders and watch the book react.</p>
+    <div class="work">
+      <div class="col">
+        <section class="card tut" id="tutorial" aria-labelledby="tut-title">
+          <h2>Guided tour</h2>
+          <div class="steps-bar" id="steps-bar" aria-hidden="true"></div>
+          <p class="tut-count" id="tut-count"></p>
+          <h3 id="tut-title"></h3>
+          <div id="tut-body"></div>
+          <div class="tut-nav">
+            <button class="btn quiet" id="tut-back" type="button">Back</button>
+            <button class="btn grow" id="tut-run" type="button"></button>
+            <button class="btn quiet" id="tut-next" type="button">Next</button>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="form-title">
+          <h2 id="form-title">Place an order</h2>
+          <form id="order-form" novalidate>
+            <div class="seg side" role="group" aria-label="Side">
+              <button type="button" data-v="BUY" aria-pressed="true">Buy</button>
+              <button type="button" data-v="SELL" aria-pressed="false">Sell</button>
+            </div>
+            <div class="seg type" role="group" aria-label="Order type">
+              <button type="button" data-v="LIMIT" aria-pressed="true">Limit</button>
+              <button type="button" data-v="MARKET" aria-pressed="false">Market</button>
+            </div>
+            <div class="fields">
+              <label for="f-price">Price (ticks)<input id="f-price" type="number" inputmode="numeric" min="1" step="1" value="100"></label>
+              <label for="f-qty">Quantity<input id="f-qty" type="number" inputmode="numeric" min="1" step="1" value="10"></label>
+            </div>
+            <button class="btn submit buy" id="f-submit" type="submit">Buy 10 at 100</button>
+            <p class="form-err" id="form-err" role="alert"></p>
+          </form>
+          <div class="form-foot">
+            <span>Tap any order in the book to cancel it.</span>
+            <button class="linkbtn" id="reset" type="button">Reset book</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="col">
+        <section class="card" aria-labelledby="book-title">
+          <div class="book-head">
+            <h2 id="book-title">Order book</h2>
+            <span class="meta num" id="book-meta"></span>
+          </div>
+          <div class="lh" aria-hidden="true"><span>Price</span><span>Size</span><span>Queue — first in line on the left</span></div>
+          <div class="ladder" id="asks"></div>
+          <div class="spread num" id="spread"></div>
+          <div class="ladder" id="bids"></div>
+          <p class="legend">Red rows are sellers (asks), green rows are buyers (bids). The outlined rows are the best price on each side.</p>
+        </section>
+
+        <div class="duo">
+          <section class="card" aria-labelledby="tape-title">
+            <h2 id="tape-title">Trades</h2>
+            <div class="tape" id="tape"></div>
+          </section>
+          <section class="card" aria-labelledby="log-title">
+            <h2 id="log-title">What just happened</h2>
+            <ul class="log" id="log" aria-live="polite"></ul>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT'S BUILT (for an interviewer) -->
+<section id="built" class="band">
+  <div class="wrap">
+    <h2 class="shead" data-reveal>How it's built</h2>
+    <p class="sintro" data-reveal>The whole point of the project was to pick the right data structures and prove the choice with numbers. Here's the inside of the Java engine.</p>
+    <div class="built">
+      <div class="prose" data-reveal>
+        <p>The book is three data structures working together, each chosen so the hot operations stay cheap:</p>
+        <p><b>Two sorted maps of price levels</b> — one for bids, one for asks (<span class="num">TreeMap&lt;Price, Deque&gt;</span>). A sorted map hands back the best price instantly, which is the single most common question the engine asks.</p>
+        <p><b>A FIFO queue at each price</b> (<span class="num">ArrayDeque</span>). Orders at the same price are served oldest-first, so time priority is just "take the front of the queue". Partial fills shrink the front order and leave everyone else's place untouched.</p>
+        <p><b>A hash index from order id to order</b> (<span class="num">HashMap</span>), so cancelling an order is a direct lookup instead of a scan.</p>
+        <p>Matching is then a tight loop: look at the best opposite price, trade against the order at the front of its queue, repeat until the incoming order is filled or no price crosses. A <b>limit</b> order stops when the price no longer crosses and rests in the book; a <b>market</b> order takes whatever it can and never rests.</p>
+        <p>Every rule is pinned down by <b>20 unit tests</b> that run in GitHub Actions on each push, and a benchmark drives millions of random orders through the book to measure throughput and tail latency honestly, rather than guessing.</p>
+        <div class="links" style="margin-top:26px">
+          <a class="go" href="https://github.com/NabeelAdam07/order-matching-engine" target="_blank" rel="noopener">Read the code on GitHub</a>
+          <a class="plain" href="#playground">Back to the demo ↑</a>
+        </div>
+      </div>
+      <div class="sticky-diag" data-reveal>
+        <div class="term" role="img" aria-label="The data structures: bids and asks are sorted price maps of FIFO queues, plus a hash map from order id to order for O(1) cancels.">
+          <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+<span class="d">// the order book, in three parts</span>
+
+OrderBook
+ ├─ <span class="k">bids</span>  TreeMap&lt;Price, Deque&lt;Order&gt;&gt;
+ │        <span class="d">highest price first</span>
+ ├─ <span class="k">asks</span>  TreeMap&lt;Price, Deque&lt;Order&gt;&gt;
+ │        <span class="d">lowest price first</span>
+ └─ <span class="k">index</span> HashMap&lt;Id, Order&gt;
+          <span class="d">direct-hit cancels</span>
+        </div>
+        <div class="ctable">
+          <table>
+            <thead><tr><th>Operation</th><th>Cost</th><th>Why</th></tr></thead>
+            <tbody>
+              <tr><td class="op">best price</td><td class="cost">O(1)</td><td>first key of the sorted map</td></tr>
+              <tr><td class="op">one fill</td><td class="cost">O(1)</td><td>front of the price queue</td></tr>
+              <tr><td class="op">rest an order</td><td class="cost">O(log P)</td><td>insert into the price map</td></tr>
+              <tr><td class="op">cancel</td><td class="cost">O(1)</td><td>hash lookup by id</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="legend" style="margin-top:12px"><span class="num">P</span> is the number of distinct prices in the book — tiny in practice, so resting an order is effectively constant too.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="big" data-reveal>Nabeel Adam</div>
+    A JavaScript port of my Java matching engine, running the same price–time priority rules. &nbsp;·&nbsp;
+    <a href="https://github.com/NabeelAdam07/order-matching-engine" target="_blank" rel="noopener">github.com/NabeelAdam07/order-matching-engine</a>
+  </div>
+</footer>
+
+<script>
+// ENGINE START — JavaScript port of the Java OrderBook: same price-time priority rules.
+function createBook() {
+  const bids = new Map(); // price -> array of orders (FIFO)
+  const asks = new Map();
+  const byId = new Map();
+
+  const sortedPrices = (side) => {
+    const prices = [...(side === 'BUY' ? bids : asks).keys()];
+    return side === 'BUY' ? prices.sort((a, b) => b - a) : prices.sort((a, b) => a - b);
+  };
+
+  function bestPrice(side) {
+    const p = sortedPrices(side);
+    return p.length ? p[0] : null;
+  }
+
+  function submit(order) {
+    if (!(order.qty > 0)) throw new Error('Quantity must be positive');
+    if (order.type === 'LIMIT' && !(order.price > 0)) throw new Error('Limit price must be positive');
+    if (byId.has(order.id)) throw new Error('Duplicate order id ' + order.id);
+    order.remaining = order.qty;
+    const trades = [];
+    const oppSide = order.side === 'BUY' ? 'SELL' : 'BUY';
+    const opp = oppSide === 'BUY' ? bids : asks;
+
+    while (order.remaining > 0) {
+      const best = bestPrice(oppSide);
+      if (best === null) break;
+      if (order.type === 'LIMIT') {
+        const crosses = order.side === 'BUY' ? best <= order.price : best >= order.price;
+        if (!crosses) break;
+      }
+      const queue = opp.get(best);
+      const resting = queue[0];
+      const fill = Math.min(order.remaining, resting.remaining);
+      order.remaining -= fill;
+      resting.remaining -= fill;
+      trades.push({
+        buyId: order.side === 'BUY' ? order.id : resting.id,
+        sellId: order.side === 'SELL' ? order.id : resting.id,
+        price: best, qty: fill, aggressor: order.side,
+        restingId: resting.id, restingFilled: resting.remaining === 0
+      });
+      if (resting.remaining === 0) {
+        queue.shift();
+        byId.delete(resting.id);
+        if (queue.length === 0) opp.delete(best);
+      }
+    }
+
+    let rested = false;
+    if (order.remaining > 0 && order.type === 'LIMIT') {
+      const own = order.side === 'BUY' ? bids : asks;
+      if (!own.has(order.price)) own.set(order.price, []);
+      own.get(order.price).push(order);
+      byId.set(order.id, order);
+      rested = true;
+    }
+    return { trades, rested, dropped: order.type === 'MARKET' ? order.remaining : 0 };
+  }
+
+  function cancel(id) {
+    const order = byId.get(id);
+    if (!order) return false;
+    byId.delete(id);
+    const side = order.side === 'BUY' ? bids : asks;
+    const queue = side.get(order.price);
+    queue.splice(queue.indexOf(order), 1);
+    if (queue.length === 0) side.delete(order.price);
+    return true;
+  }
+
+  function levels(side) {
+    const map = side === 'BUY' ? bids : asks;
+    return sortedPrices(side).map((price) => ({
+      price,
+      orders: map.get(price).map((o) => ({ id: o.id, remaining: o.remaining })),
+      total: map.get(price).reduce((s, o) => s + o.remaining, 0)
+    }));
+  }
+
+  return { submit, cancel, levels, bestBid: () => bestPrice('BUY'), bestAsk: () => bestPrice('SELL'),
+           count: () => byId.size, has: (id) => byId.has(id) };
+}
+// ENGINE END
+</script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  let book, nextId, trades, log;
+
+  // ---------- scenarios ----------
+  const L = (side, price, qty) => ({ side, type: 'LIMIT', price, qty });
+  const BASE = [L('BUY', 99, 30), L('BUY', 98, 20), L('BUY', 97, 40),
+                L('SELL', 101, 25), L('SELL', 102, 30), L('SELL', 103, 15)];
+
+  const STEPS = [
+    { title: 'Reading the book',
+      body: '<p>The book lists everyone waiting to trade. <b>Asks</b> (red) are sellers, <b>bids</b> (green) are buyers. Each row is one price; the chips show the orders queued there, by id and size.</p><p>The best bid is 99 and the best ask is 101. Nobody trades, because no buyer will pay what a seller is asking. That 2-tick gap is the <b>spread</b>.</p>',
+      setup: BASE },
+    { title: 'Rule 1: price priority',
+      body: '<p>A buyer sends <b>Buy 40 at 102</b>. The engine always matches the <b>best</b> opposite price first, so it takes the 25 at 101 before touching 102.</p><p>Watch the trade prices: the first 25 trade at <b>101</b>, not 102. The order already waiting sets the price.</p>',
+      setup: BASE, run: [L('BUY', 102, 40)], label: 'Send Buy 40 at 102' },
+    { title: 'Rule 2: time priority',
+      body: '<p>Two sellers both ask 100: order #7 arrived first, then #8. At the same price, <b>whoever arrived first trades first</b>.</p><p>Send <b>Buy 15 at 100</b>: #7 is filled completely, and #8 only partly.</p>',
+      setup: BASE.concat([L('SELL', 100, 10), L('SELL', 100, 10)]), run: [L('BUY', 100, 15)], label: 'Send Buy 15 at 100' },
+    { title: 'Partial fills',
+      body: '<p>Only 10 are for sale at 100. Send <b>Buy 25 at 100</b>: 10 trade straight away, and the other 15 don\'t vanish.</p><p>They <b>rest in the book</b> at 100, becoming the new best bid and waiting for a seller.</p>',
+      setup: BASE.concat([L('SELL', 100, 10)]), run: [L('BUY', 100, 25)], label: 'Send Buy 25 at 100' },
+    { title: 'Market orders',
+      body: '<p>A <b>market order</b> has no price limit: it takes whatever is available, best price first.</p><p>Send <b>Sell 60 at market</b>. It sweeps down through 99, 98 and 97 until it is filled. Market orders never rest; anything left unfilled is dropped.</p>',
+      setup: BASE, run: [{ side: 'SELL', type: 'MARKET', qty: 60 }], label: 'Send Sell 60 at market' },
+    { title: 'Cancelling',
+      body: '<p>Traders cancel orders all the time. Cancel order <b>#1</b>, the 30 bid at 99, and that price level disappears. The best bid drops to 98.</p><p>You can cancel any order yourself by tapping its chip in the book.</p>',
+      setup: BASE, run: [{ cancel: 1 }], label: 'Cancel order #1' },
+    { title: 'Your turn',
+      body: '<p>Use the order form to trade against the book. Some ideas:</p><p>Send a buy at 103 for 100 and watch it clear three price levels. Queue two sells at the same price, then buy one of them. Try a market order into an empty side.</p>',
+      setup: BASE }
+  ];
+  let step = 0, stepDone = false;
+
+  // ---------- core actions ----------
+  function reset(setup) {
+    book = createBook(); nextId = 1; trades = []; log = [];
+    (setup || []).forEach((o) => { book.submit(Object.assign({ id: nextId++ }, o)); });
+  }
+
+  function place(o) {
+    const order = Object.assign({ id: nextId }, o);
+    const res = book.submit(order);
+    nextId++;
+    const flashIds = new Set(), flashPrices = new Set();
+    const name = (o.side === 'BUY' ? 'Buy' : 'Sell') + ' #' + order.id;
+    res.trades.forEach((t) => {
+      trades.unshift({ ...t });
+      const other = t.restingId;
+      flashPrices.add(t.price);
+      log.unshift({ kind: 'trade', text: name + ' ' + (o.side === 'BUY' ? 'bought' : 'sold') + ' <b>' + t.qty + '</b> ' +
+        (o.side === 'BUY' ? 'from' : 'to') + ' #' + other + ' at <b>' + t.price + '</b>' +
+        (o.type === 'LIMIT' && t.price !== o.price ? ' (#' + other + '\'s price, better than the ' + o.price + ' limit)' : '') +
+        (t.restingFilled ? '. #' + other + ' is now filled.' : '. #' + other + ' stays in the queue with its place.') });
+    });
+    if (res.trades.length === 0 && res.rested) {
+      log.unshift({ kind: 'rest', text: name + ' for ' + o.qty + ' at ' + o.price + ' didn\'t reach the other side, so it joins the back of the queue at ' + o.price + '.' });
+      flashIds.add(order.id);
+    } else if (res.rested) {
+      log.unshift({ kind: 'rest', text: 'The remaining <b>' + order.remaining + '</b> of ' + name + ' rest at ' + o.price + ' and wait for a ' + (o.side === 'BUY' ? 'seller' : 'buyer') + '.' });
+      flashIds.add(order.id);
+    }
+    if (res.dropped > 0) {
+      log.unshift({ kind: 'rest', text: 'Market order: <b>' + res.dropped + '</b> could not be filled and were dropped. Market orders never rest in the book.' });
+    }
+    if (o.type === 'MARKET' && res.trades.length === 0 && !res.dropped) {
+      log.unshift({ kind: 'rest', text: 'Nothing to match.' });
+    }
+    render(flashIds, flashPrices);
+  }
+
+  function cancelOrder(id) {
+    let price = null, side = null;
+    ['BUY', 'SELL'].forEach((s) => book.levels(s).forEach((l) => { if (l.orders.some((x) => x.id === id)) { price = l.price; side = s; } }));
+    if (book.cancel(id)) {
+      log.unshift({ kind: 'rest', text: 'Cancelled #' + id + ': it leaves the ' + (side === 'BUY' ? 'bid' : 'ask') + ' queue at ' + price + '.' });
+      render(new Set(), new Set());
+    }
+  }
+
+  // ---------- rendering ----------
+  function levelRow(level, side, isBest, maxTotal, flashIds, flashPrices) {
+    const row = document.createElement('div');
+    row.className = 'row ' + (side === 'BUY' ? 'bid' : 'ask') + (isBest ? ' best' : '') + (flashPrices.has(level.price) ? ' flash' : '');
+    const bar = document.createElement('span');
+    bar.className = 'bar';
+    bar.style.width = Math.max(4, (level.total / maxTotal) * 100) + '%';
+    row.appendChild(bar);
+    const px = document.createElement('span'); px.className = 'px num'; px.textContent = level.price; row.appendChild(px);
+    const tot = document.createElement('span'); tot.className = 'tot num'; tot.textContent = level.total; row.appendChild(tot);
+    const q = document.createElement('span'); q.className = 'queue';
+    level.orders.forEach((o, i) => {
+      const c = document.createElement('button');
+      c.type = 'button';
+      c.className = 'chip' + (i === 0 ? ' first' : '') + (flashIds.has(o.id) ? ' flash' : '');
+      c.setAttribute('aria-label', 'Cancel order ' + o.id + ', ' + o.remaining + ' at ' + level.price);
+      c.innerHTML = '#' + o.id + ' · ' + o.remaining + ' <span class="x" aria-hidden="true">×</span>';
+      c.addEventListener('click', () => cancelOrder(o.id));
+      q.appendChild(c);
+    });
+    row.appendChild(q);
+    return row;
+  }
+
+  function render(flashIds, flashPrices) {
+    flashIds = flashIds || new Set(); flashPrices = flashPrices || new Set();
+    const asks = book.levels('SELL'), bids = book.levels('BUY');
+    const maxTotal = Math.max(1, ...asks.map((l) => l.total), ...bids.map((l) => l.total));
+
+    const askEl = $('asks'); askEl.replaceChildren();
+    if (!asks.length) askEl.innerHTML = '<div class="empty">No sellers</div>';
+    asks.slice().reverse().forEach((l, i, arr) => askEl.appendChild(levelRow(l, 'SELL', i === arr.length - 1, maxTotal, flashIds, flashPrices)));
+
+    const bidEl = $('bids'); bidEl.replaceChildren();
+    if (!bids.length) bidEl.innerHTML = '<div class="empty">No buyers</div>';
+    bids.forEach((l, i) => bidEl.appendChild(levelRow(l, 'BUY', i === 0, maxTotal, flashIds, flashPrices)));
+
+    const bb = book.bestBid(), ba = book.bestAsk();
+    $('spread').innerHTML = (bb !== null && ba !== null)
+      ? 'Best bid <b>' + bb + '</b> · Spread <b>' + (ba - bb) + '</b> · Best ask <b>' + ba + '</b>'
+      : 'No spread: one side of the book is empty';
+    $('book-meta').textContent = book.count() + ' resting orders · next id #' + nextId;
+
+    const tape = $('tape');
+    tape.innerHTML = trades.length
+      ? '<table><thead><tr><th>Price</th><th class="r">Qty</th><th class="r">Buyer</th><th class="r">Seller</th></tr></thead><tbody>' +
+        trades.slice(0, 40).map((t) => '<tr><td class="num ' + (t.aggressor === 'BUY' ? 'side-b' : 'side-s') + '">' + t.price + '</td><td class="r num">' + t.qty + '</td><td class="r num">#' + t.buyId + '</td><td class="r num">#' + t.sellId + '</td></tr>').join('') +
+        '</tbody></table>'
+      : '<p class="empty">No trades yet. Send an order that crosses the spread.</p>';
+
+    const logEl = $('log');
+    logEl.innerHTML = log.length
+      ? log.slice(0, 30).map((e, i) => '<li class="' + e.kind + (i === 0 ? ' newest' : '') + '">' + e.text + '</li>').join('')
+      : '<li>Orders you send are explained here, step by step.</li>';
+  }
+
+  // ---------- tutorial ----------
+  function showStep(i) {
+    step = i; stepDone = false;
+    const s = STEPS[i];
+    reset(s.setup);
+    $('steps-bar').innerHTML = STEPS.map((_, k) => '<span class="' + (k <= i ? 'on' : '') + '"></span>').join('');
+    $('tut-count').textContent = 'Step ' + (i + 1) + ' of ' + STEPS.length;
+    $('tut-title').textContent = s.title;
+    $('tut-body').innerHTML = s.body + (s.run ? '<div class="try">Press <b>' + s.label + '</b> and watch the book, the trades and the explanation.</div>' : '');
+    const run = $('tut-run');
+    run.hidden = !s.run;
+    run.disabled = false;
+    run.textContent = s.label || '';
+    $('tut-back').disabled = i === 0;
+    $('tut-next').disabled = i === STEPS.length - 1;
+    render();
+  }
+
+  $('tut-run').addEventListener('click', () => {
+    const s = STEPS[step];
+    if (stepDone || !s.run) return;
+    s.run.forEach((o) => (o.cancel ? cancelOrder(o.cancel) : place(o)));
+    stepDone = true;
+    $('tut-run').disabled = true;
+    $('tut-run').textContent = 'Done ✓';
+  });
+  $('tut-back').addEventListener('click', () => step > 0 && showStep(step - 1));
+  $('tut-next').addEventListener('click', () => step < STEPS.length - 1 && showStep(step + 1));
+  $('reset').addEventListener('click', () => { reset(BASE); render(); });
+
+  // ---------- order form ----------
+  const form = { side: 'BUY', type: 'LIMIT' };
+  function syncForm() {
+    document.querySelectorAll('.seg.side button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === form.side)));
+    document.querySelectorAll('.seg.type button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === form.type)));
+    $('f-price').disabled = form.type === 'MARKET';
+    const qty = $('f-qty').value || '?', price = $('f-price').value || '?';
+    const btn = $('f-submit');
+    btn.className = 'btn submit ' + (form.side === 'BUY' ? 'buy' : 'sell');
+    btn.textContent = (form.side === 'BUY' ? 'Buy ' : 'Sell ') + qty + (form.type === 'MARKET' ? ' at market' : ' at ' + price);
+  }
+  document.querySelectorAll('.seg.side button').forEach((b) => b.addEventListener('click', () => { form.side = b.dataset.v; syncForm(); }));
+  document.querySelectorAll('.seg.type button').forEach((b) => b.addEventListener('click', () => { form.type = b.dataset.v; syncForm(); }));
+  $('f-price').addEventListener('input', syncForm);
+  $('f-qty').addEventListener('input', syncForm);
+  $('order-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const qty = Number($('f-qty').value), price = Number($('f-price').value);
+    const err = $('form-err');
+    if (!Number.isInteger(qty) || qty < 1) { err.textContent = 'Enter a whole-number quantity of at least 1.'; return; }
+    if (form.type === 'LIMIT' && (!Number.isInteger(price) || price < 1)) { err.textContent = 'Enter a whole-number price of at least 1 tick.'; return; }
+    err.textContent = '';
+    place(form.type === 'MARKET' ? { side: form.side, type: 'MARKET', qty } : { side: form.side, type: 'LIMIT', price, qty });
+  });
+
+  syncForm();
+  showStep(0);
+
+  // ---------- theme toggle ----------
+  const root = document.documentElement;
+  let saved = null;
+  try { saved = localStorage.getItem('obp-theme'); } catch (e) {}
+  if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved);
+  $('theme').addEventListener('click', () => {
+    const sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme:dark)').matches;
+    const current = root.getAttribute('data-theme') || (sysDark ? 'dark' : 'light');
+    const next = current === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('obp-theme', next); } catch (e) {}
+  });
+
+  // ---------- reveal on scroll ----------
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((es) => {
+      es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+    document.querySelectorAll('[data-reveal]').forEach((el) => {
+      const sib = el.parentElement ? [].indexOf.call(el.parentElement.children, el) : 0;
+      el.style.transitionDelay = Math.min(sib, 5) * 70 + 'ms';
+      io.observe(el);
+    });
+  }
+})();
+</script>
+</body>
+</html>
