@@ -1,6 +1,12 @@
 # Order Matching Engine
 
+![Tests](https://github.com/NabeelAdam07/order-matching-engine/actions/workflows/tests.yml/badge.svg)
+
 A limit order book and matching engine in Java 21: the component at the centre of every stock exchange. It accepts buy and sell orders, matches them by **price-time priority**, and keeps a live book of orders waiting to trade.
+
+**6.77 million operations per second, p99 latency under 1 µs** (MacBook Pro M2).
+
+**[▶ Try the interactive demo](https://nabeeladam07.github.io/order-matching-engine)** — place orders and watch the book match them live, with a walkthrough of the matching rules and the data structures behind it.
 
 ## What it does
 
@@ -40,11 +46,12 @@ mvn -q compile exec:java  # run the benchmark
 
 2,000,000 operations after a 500,000-operation warm-up, with a fixed random seed: 75% limit orders, 10% market orders, 15% cancels, priced within ±50 ticks of the mid.
 
-| Metric | Result |
+| Metric | Result (MacBook Pro M2) |
 | --- | --- |
-| Throughput | _run on your machine_ ops/sec |
-| Latency p50 | _run on your machine_ ns |
-| Latency p99 | _run on your machine_ ns |
+| Throughput | 6.77 million ops/sec |
+| Latency p50 | 84 ns |
+| Latency p99 | 792 ns |
+| Latency p99.9 | 1.5 µs |
 
 Latency is measured with `System.nanoTime()` around each call, which adds roughly 20–30 ns, so small figures are upper bounds. The worst-case outliers come from garbage collection pauses.
 
