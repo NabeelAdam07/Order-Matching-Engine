@@ -6,7 +6,7 @@ A limit order book and matching engine in Java 21: the component at the centre o
 
 **6.77 million operations per second, p99 latency under 1 µs** (MacBook Pro M2).
 
-**[▶ Try the interactive demo](https://nabeeladam07.github.io/order-matching-engine)** — place orders and watch the book match them live, with a walkthrough of the matching rules and the data structures behind it.
+**[▶ Try the interactive demo](https://nabeeladam07.github.io/Order-Matching-Engine/)** — place orders and watch the book match them live, with a walkthrough of the matching rules and the data structures behind it.
 
 ## What it does
 
